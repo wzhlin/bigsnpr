@@ -100,3 +100,4 @@ I will always redirect you to GitHub issues if you email me, so that others can 
 - Privé, Florian. ["Using the UK Biobank as a global reference of worldwide populations: application to measuring ancestry diversity from GWAS summary statistics."](https://doi.org/10.1093/bioinformatics/btac348) *Bioinformatics* 38.13 (2022): 3477-3480.
 
 - Privé, Florian, et al. [Inferring disease architecture and predictive ability with LDpred2-auto](https://doi.org/10.1101/2022.10.10.511629). *bioRxiv* (2022).
+
