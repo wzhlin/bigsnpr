@@ -61,6 +61,10 @@ corMat <- function(obj, rowInd, colInd, size, thr, pos, fill_diag, ncores) {
     .Call(`_bigsnpr_corMat`, obj, rowInd, colInd, size, thr, pos, fill_diag, ncores)
 }
 
+find_highld <- function(I, X, thr_highld, min_nb_highld) {
+    .Call(`_bigsnpr_find_highld`, I, X, thr_highld, min_nb_highld)
+}
+
 impute <- function(BM, method, ncores) {
     invisible(.Call(`_bigsnpr_impute`, BM, method, ncores))
 }

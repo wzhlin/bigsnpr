@@ -36,9 +36,11 @@ coef
 Daly
 Devlin
 dgCMatrix
+deno
 diploidy
 doi
 dsCMatrix
+eigen
 Eigenanalysis
 Elsevier
 Elston
@@ -112,6 +114,7 @@ plinkQC
 ploidy
 PLoS
 polygenic
+polygenicity
 polymorphism
 pos
 PRED
@@ -158,6 +161,7 @@ unscaling
 Vattikuti
 VCF
 Weale
+Wenhan
 XGBoost
 Yixuan
 Zheng
