@@ -101,4 +101,3 @@ I will always redirect you to GitHub issues if you email me, so that others can 
 
 - Privé, Florian, et al. [Inferring disease architecture and predictive ability with LDpred2-auto](https://doi.org/10.1101/2022.10.10.511629). *bioRxiv* (2022).
 
-also test
