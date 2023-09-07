@@ -1,5 +1,8 @@
 ################################################################################
 
+# still have some problems
+
+
 #' Eigen value decomposition to get sqrt root of inverse of x
 #'
 #' @param x A symmetric matrix
@@ -111,7 +114,8 @@ snp_qc_sumstats <- function(z_scores,
 
       res_impute <- impute_z(id_current, id_high,
                              ld_current_high = ld_current[id_high],
-                             z_high = z_scores[id_high])
+                             z_high = z_scores[id_high],
+                             prop_eig = prop_eig)
       list(res_impute, id_high)
     }
 
@@ -120,7 +124,7 @@ snp_qc_sumstats <- function(z_scores,
                                    .Machine$double.eps)
     all_id_high[id_this]   <- lapply(all_res_this, function(x) x[[2]])
 
-    timing <- difftime(Sys.time(), st_this_this, units = "secs")
+    timing <- difftime(Sys.time(), st_time_this, units = "secs")
 
     cat("Time for this:", round(timing, 1), "seconds.\n")
 
