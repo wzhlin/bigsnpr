@@ -4,22 +4,28 @@
 \alias{impute_z}
 \title{Impute z-score using highly correlated variants}
 \usage{
-impute_z(id_current, id_high, ld_current_high, z_high, prop_eig)
+impute_z(ld_high_high, ld_current_high, z_high, prop_eig)
 }
 \arguments{
-\item{id_current}{current id of variant to be impute}
-
-\item{id_high}{id of highly correlated variants}
-
 \item{ld_current_high}{LD matrix for id_current and id_high}
 
 \item{z_high}{z-scores for highly correlated variants}
 
 \item{prop_eig}{proportion of eigenvalues to be used in eigenvalue decomp}
+
+\item{id_current}{current id of variant to be impute}
+
+\item{id_high}{id of highly correlated variants}
 }
 \value{
 Imputed z-score, and denominator of chisq statistics
 }
 \description{
 Impute z-score using highly correlated variants
+}
+\examples{
+
+a <- 1
+print(a)
+
 }

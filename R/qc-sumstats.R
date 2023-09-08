@@ -1,17 +1,17 @@
 ################################################################################
 
-# still have some problems
-
-
 #' Eigen value decomposition to get sqrt root of inverse of x
 #'
 #' @param x A symmetric matrix
 #' @param prop_eig Proportion of eigen values to be attained
 #' @param eig_tol Min eigenvalue attained
 #'
-#' @return A pseudo sqrt root of inverse of x
+#' @return A pseudo sqrt root of inverse x
 #'
-#' @example
+#' @examples
+#'
+#' a <- 1
+#' print(a)
 #'
 eigen_halfinv <- function(x, prop_eig, eig_tol = 1e-4) {
 
@@ -40,15 +40,17 @@ eigen_halfinv <- function(x, prop_eig, eig_tol = 1e-4) {
 #'
 #' @return Imputed z-score, and denominator of chisq statistics
 #'
-#' @example
+#' @examples
 #'
-impute_z <- function(id_current,
-                     id_high,
+#' a <- 1
+#' print(a)
+#'
+impute_z <- function(ld_high_high,
                      ld_current_high,
                      z_high,
                      prop_eig) {
 
-  eig_scaled <- eigen_halfinv(ld[id_high, id_high], prop_eig = prop_eig) # get eig
+  eig_scaled <- eigen_halfinv(ld_high_high , prop_eig = prop_eig) # get eig
 
   z_imputed <-
     (ld_current_high %*% eig_scaled) %*% crossprod(eig_scaled, z_high)
@@ -61,7 +63,7 @@ impute_z <- function(id_current,
 
 #' Quality Control of summary statistics
 #'
-#' @param z_scores z_scores from GWAS summary statistics
+#' @param z_sumstats z_sumstats from GWAS summary statistics
 #' @param ld LD matrix
 #' @param thr_highld Threshold for highly correlated variants, `0.05` by default
 #' @param num_highld Minimum number of highly correlated variants, `20` by default
@@ -69,33 +71,37 @@ impute_z <- function(id_current,
 #' @param max_run Maximum round of iterations to run.
 #' @param ncores Number of cores to run in parallel
 #'
-#' @return A dataframe of original z-score, imputed z-score, chisq statistics, p-value, and whether to be removed or not
-#'
 #' @export
 #'
-#' @example
+#' @return A dataframe of original z-score, imputed z-score, chisq statistics, p-value, and whether to be removed or not
+#'
+#' @examples
+#'
+#' a <- 1
+#' print(a)
 #'
 
-snp_qc_sumstats <- function(z_scores,
+snp_qc_sumstats <- function(z_sumstats,
                             ld,
                             thr_highld = 0.05,
                             num_highld = 20,
                             prop_eig = 0.4,
-                            max_run = 0.1 * length(z_scores),
+                            max_run = 0.1 * length(z_sumstats),
                             ncores = 1) {
 
-  chi2_gwide_thr <- qchisq(5e-8, df = 1, lower.tail = FALSE)
+  assert_lengths(z_sumstats, rows_along(ld), cols_along(ld))
 
-  all_imputed_z <- rep(NA_real_, length(z_scores))
-  all_deno      <- rep(NA_real_, length(z_scores))
+  chi2_gwide_thr <- stats::qchisq(5e-8, df = 1, lower.tail = FALSE)
+
+  all_imputed_z <- rep(NA_real_, length(z_sumstats))
+  all_deno      <- rep(NA_real_, length(z_sumstats))
   all_id_high   <- list()
 
-  removed <- rep(FALSE, length(z_scores))
+  removed <- rep(FALSE, length(z_sumstats))
 
-  id_this <- seq_len(length(z_scores))
+  id_this <- seq_len(length(z_sumstats))
 
-  cl <- makeCluster(ncores)
-  registerDoParallel(cl)
+  bigparallelr::register_parallel(ncores)
 
   st_time_all <- Sys.time()
 
@@ -106,15 +112,18 @@ snp_qc_sumstats <- function(z_scores,
     id_rm <- which(removed)
 
     cat("=== i_run =", i_run, "-- length for this:", length(id_this), "===\n")
-    all_res_this <- foreach(id_current = id_this) %dopar% {
+
+    fun_use <- c("find_highld", "impute_z")
+    all_res_this <- foreach(id_current = id_this, .export = fun_use) %dopar% {
       ld_current <- ld[, id_current]
       ld_current[c(id_current, id_rm)] <- 0
 
       id_high <- find_highld(ld_current@i, ld_current@x, thr_highld, num_highld)
+      ld_high_high <- ld[id_high, id_high]
 
-      res_impute <- impute_z(id_current, id_high,
+      res_impute <- impute_z(ld_high_high = ld_high_high,
                              ld_current_high = ld_current[id_high],
-                             z_high = z_scores[id_high],
+                             z_high = z_sumstats[id_high],
                              prop_eig = prop_eig)
       list(res_impute, id_high)
     }
@@ -128,7 +137,7 @@ snp_qc_sumstats <- function(z_scores,
 
     cat("Time for this:", round(timing, 1), "seconds.\n")
 
-    chi2 <- (z_scores - all_imputed_z)^2 / all_deno
+    chi2 <- (z_sumstats - all_imputed_z)^2 / all_deno
     id_rm_this <- which.max(chi2 * !removed)
 
     if (chi2[id_rm_this] > chi2_gwide_thr) {
@@ -144,20 +153,18 @@ snp_qc_sumstats <- function(z_scores,
   timing_all <- difftime(Sys.time(), st_time_all, units = "mins")
   cat("Time for all:", round(timing_all, 1), "minutes.\n")
 
-  stopCluster(cl)
 
-  chi2_final <- (z_scores - all_imputed_z)^2 / all_deno
-  pval_final <- pchisq(chi2_final, df = 1, lower.tail = FALSE)
+  chi2_final <- (z_sumstats - all_imputed_z)^2 / all_deno
+  pval_final <- stats::pchisq(chi2_final, df = 1, lower.tail = FALSE)
 
 
   data.frame(
-    z_scores = z_scores,
+    z_sumstats = z_sumstats,
     z_imputed = all_imputed_z,
     chi2_final = chi2_final,
     p_val = pval_final,
     remove = pval_final < 5e-8
   )
-
 }
 
 ################################################################################

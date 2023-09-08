@@ -14,8 +14,14 @@ eigen_halfinv(x, prop_eig, eig_tol = 1e-04)
 \item{eig_tol}{Min eigenvalue attained}
 }
 \value{
-A pseudo sqrt root of inverse of x
+A pseudo sqrt root of inverse x
 }
 \description{
 Eigen value decomposition to get sqrt root of inverse of x
+}
+\examples{
+
+a <- 1
+print(a)
+
 }

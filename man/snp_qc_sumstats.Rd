@@ -5,17 +5,17 @@
 \title{Quality Control of summary statistics}
 \usage{
 snp_qc_sumstats(
-  z_scores,
+  z_sumstats,
   ld,
   thr_highld = 0.05,
   num_highld = 20,
   prop_eig = 0.4,
-  max_run = 0.1 * length(z_scores),
+  max_run = 0.1 * length(z_sumstats),
   ncores = 1
 )
 }
 \arguments{
-\item{z_scores}{z_scores from GWAS summary statistics}
+\item{z_sumstats}{z_sumstats from GWAS summary statistics}
 
 \item{ld}{LD matrix}
 
@@ -34,4 +34,10 @@ A dataframe of original z-score, imputed z-score, chisq statistics, p-value, and
 }
 \description{
 Quality Control of summary statistics
+}
+\examples{
+
+a <- 1
+print(a)
+
 }

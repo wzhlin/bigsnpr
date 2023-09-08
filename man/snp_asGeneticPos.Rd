@@ -23,7 +23,7 @@ Typically \verb{<bigSNP>$map$physical.pos}.}
 
 \item{dir}{Directory where to download and decompress files.
 Default is \code{tempdir()}. Directly use \emph{uncompressed} files there if already
-present. You can use \code{\link[R.utils:gunzip]{R.utils::gunzip()}} to uncompress local files.}
+present. You can use \code{\link[R.utils:compressFile]{R.utils::gunzip()}} to uncompress local files.}
 
 \item{ncores}{Number of cores used. Default doesn't use parallelism.
 You may use \link{nb_cores}.}
