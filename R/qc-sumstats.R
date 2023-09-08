@@ -10,8 +10,9 @@
 #'
 #' @examples
 #'
-#' a <- 1
-#' print(a)
+#' x <- crossprod(matrix(1:4, 2, 2))
+#' x_inv_half <- eigen_halfinv(x, prop_eig = 1)
+#' all.equal(solve(x), tcrossprod(x_inv_half))
 #'
 eigen_halfinv <- function(x, prop_eig, eig_tol = 1e-4) {
 
