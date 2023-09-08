@@ -69,6 +69,7 @@ impute_z <- function(ld_high_high,
 #' @param num_highld Minimum number of highly correlated variants, `20` by default
 #' @param prop_eig Proportion of eigenvalues to attain, `0.4` by default
 #' @param max_run Maximum round of iterations to run.
+#' @param print_info print_info or not, `FALSE` by default
 #' @param ncores Number of cores to run in parallel
 #'
 #' @export
@@ -87,6 +88,7 @@ snp_qc_sumstats <- function(z_sumstats,
                             num_highld = 20,
                             prop_eig = 0.4,
                             max_run = 0.1 * length(z_sumstats),
+                            print_info = FALSE,
                             ncores = 1) {
 
   assert_lengths(z_sumstats, rows_along(ld), cols_along(ld))
@@ -111,7 +113,9 @@ snp_qc_sumstats <- function(z_sumstats,
 
     id_rm <- which(removed)
 
-    cat("=== i_run =", i_run, "-- length for this:", length(id_this), "===\n")
+    if (print_info) {
+      cat("=== i_run =", i_run, "-- length for this:", length(id_this), "===\n")
+    }
 
     fun_use <- c("find_highld", "impute_z")
     all_res_this <- foreach(id_current = id_this, .export = fun_use) %dopar% {
@@ -133,9 +137,10 @@ snp_qc_sumstats <- function(z_sumstats,
                                    .Machine$double.eps)
     all_id_high[id_this]   <- lapply(all_res_this, function(x) x[[2]])
 
-    timing <- difftime(Sys.time(), st_time_this, units = "secs")
-
-    cat("Time for this:", round(timing, 1), "seconds.\n")
+    if (print_info) {
+      timing <- difftime(Sys.time(), st_time_this, units = "secs")
+      cat("Time for this:", round(timing, 1), "seconds.\n")
+    }
 
     chi2 <- (z_sumstats - all_imputed_z)^2 / all_deno
     id_rm_this <- which.max(chi2 * !removed)
@@ -150,8 +155,10 @@ snp_qc_sumstats <- function(z_sumstats,
 
   } # end of iteration
 
-  timing_all <- difftime(Sys.time(), st_time_all, units = "mins")
-  cat("Time for all:", round(timing_all, 1), "minutes.\n")
+  if (print_info) {
+    timing_all <- difftime(Sys.time(), st_time_all, units = "mins")
+    cat("Time for all:", round(timing_all, 1), "minutes.\n")
+  }
 
 
   chi2_final <- (z_sumstats - all_imputed_z)^2 / all_deno

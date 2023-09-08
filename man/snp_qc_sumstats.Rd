@@ -11,6 +11,7 @@ snp_qc_sumstats(
   num_highld = 20,
   prop_eig = 0.4,
   max_run = 0.1 * length(z_sumstats),
+  print_info = FALSE,
   ncores = 1
 )
 }
@@ -26,6 +27,8 @@ snp_qc_sumstats(
 \item{prop_eig}{Proportion of eigenvalues to attain, \code{0.4} by default}
 
 \item{max_run}{Maximum round of iterations to run.}
+
+\item{print_info}{print_info or not, \code{FALSE} by default}
 
 \item{ncores}{Number of cores to run in parallel}
 }
