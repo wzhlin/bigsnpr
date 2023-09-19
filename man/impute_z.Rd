@@ -4,7 +4,7 @@
 \alias{impute_z}
 \title{Impute z-score using highly correlated variants}
 \usage{
-impute_z(ld_high_high, ld_current_high, z_high, prop_eig)
+impute_z(ld_high_high, ld_current_high, z_high, prop_eig = 0.4)
 }
 \arguments{
 \item{ld_current_high}{LD matrix for id_current and id_high}
@@ -24,8 +24,20 @@ Imputed z-score, and denominator of chisq statistics
 Impute z-score using highly correlated variants
 }
 \examples{
+obj_bigsnp <- snp_attachExtdata()
+G <- obj_bigsnp$genotypes
+Z <- big_univLogReg(G, obj_bigsnp$fam$affection - 1, ind.col = 1:500)$score
+ld <- snp_cor(G, ind.col = 1:500)
+id_current <- which.max(Matrix::colSums(ld^2))
+ld_current <- ld[, id_current]
+id_high <- setdiff(which(ld_current^2 > 0.05), id_current)
+ld_high_high <- ld[id_high, id_high]
+z_imputed <- bigsnpr:::impute_z(ld_high_high = ld_high_high,
+                                ld_current_high = ld_current[id_high],
+                                z_high = Z[id_high],
+                                prop_eig = 0.4)
+chi2 <- (Z[id_current] - z_imputed[1])^2 / z_imputed[2]
+pchisq(chi2, df = 1, lower.tail = FALSE)
 
-a <- 1
-print(a)
 
 }
