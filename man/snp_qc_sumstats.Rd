@@ -40,7 +40,15 @@ Quality Control of summary statistics
 }
 \examples{
 
-a <- 1
-print(a)
+
+obj_bigsnp <- snp_attachExtdata()
+G <- obj_bigsnp$genotypes
+Z <- big_univLogReg(G, obj_bigsnp$fam$affection - 1, ind.col = 1:500)$score
+ind <- which.max(abs(Z))
+Z[ind] <- -Z[ind]
+ld <- as_SFBM(snp_cor(G, ind.col = 1:500), compact = TRUE)
+res <- snp_qc_sumstats(z_sumstats = Z, ld = ld)
+res$p_val[ind]
+res$remove[p_val]
 
 }
