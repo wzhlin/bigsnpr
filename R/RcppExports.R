@@ -65,6 +65,10 @@ find_highld <- function(I, X, thr_highld, min_nb_highld) {
     .Call(`_bigsnpr_find_highld`, I, X, thr_highld, min_nb_highld)
 }
 
+update_ldscore <- function(ld_score, I, X, P, j) {
+    .Call(`_bigsnpr_update_ldscore`, ld_score, I, X, P, j)
+}
+
 impute <- function(BM, method, ncores) {
     invisible(.Call(`_bigsnpr_impute`, BM, method, ncores))
 }

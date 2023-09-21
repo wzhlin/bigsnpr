@@ -55,3 +55,18 @@ IntegerVector find_highld(const IntegerVector& I,
   }
 
 }
+
+// [[Rcpp::export]]
+NumericVector& update_ldscore(NumericVector& ld_score,
+                              const IntegerVector& I,
+                              const NumericVector& X,
+                              const IntegerVector& P,
+                              int j) {
+
+  int K = P[j + 1];
+  for (int k = P[j]; k < K; k++) {
+    ld_score[I[k]] -= square(X[k]);
+  }
+
+  return ld_score;
+}

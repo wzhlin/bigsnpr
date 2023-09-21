@@ -31,6 +31,25 @@ eigen_halfinv <- function(x, prop_eigs, tol = 1e-4) {
 
 ################################################################################
 
+select_useful <- function(ld_high, ld_current_high, thr = 0.01) {
+
+  w <- ld_current_high^2
+  keep <- rep(TRUE, length(w))
+  ld_score <- Matrix::colSums(ld_high^2)
+
+  for (j in order(w)) {
+    if ((w[j]^sqrt(ld_score[j])) < thr) {
+      keep[j] <- FALSE
+      ld_score <- update_ldscore(ld_score, ld_high@i, ld_high@x, ld_high@p, j - 1)
+      # in the end, ld_score should be 0 for those not kept
+    }
+  }
+
+  keep
+}
+
+################################################################################
+
 #' Impute z-score using nearby variants
 #'
 #' @param ld_current_high LD between variant to impute and its high LD variants.
@@ -57,8 +76,8 @@ eigen_halfinv <- function(x, prop_eigs, tol = 1e-4) {
 #'                             ld_high_high = ld[id_high, id_high],
 #'                             z_high = Z[id_high],
 #'                             prop_eigs = 0.4)
-#' c(Z[id_current], z_imp[1])
-#' chi2 <- (Z[id_current] - z_imp[1])^2 / z_imp[2]
+#' c(Z[id_current], z_imp[1, ])
+#' chi2 <- (Z[id_current] - z_imp[1, ])^2 / z_imp[2, ]
 #' pchisq(chi2, df = 1, lower.tail = FALSE)
 #'
 impute_z <- function(ld_current_high, ld_high_high, z_high, prop_eigs) {
@@ -66,15 +85,16 @@ impute_z <- function(ld_current_high, ld_high_high, z_high, prop_eigs) {
   # eigendecomposition to get R_tt^-0.5
   eig_scaled <- eigen_halfinv(ld_high_high, prop_eigs = prop_eigs)
 
+  # R_it R_tt^-0.5
   r_half <- ld_current_high %*% eig_scaled
 
   # R_it R_tt^-1 z_t
-  z_imputed <- r_half %*% crossprod(eig_scaled, z_high)
+  z_imputed <- cumsum(r_half * as.vector(crossprod(eig_scaled, z_high)))
 
   # 1 - R_it R_tt^-1 R_ti
-  deno <- 1 - tcrossprod(r_half)
+  deno <- 1 - cumsum(r_half^2)
 
-  c(z_imputed, deno)
+  rbind(z_imputed, deno)
 }
 
 ################################################################################
@@ -134,9 +154,8 @@ snp_qc_sumstats <- function(corr, z_sumstats,
   chi2_thr <- stats::qchisq(pval_thr, df = 1, lower.tail = FALSE)
 
   # preallocate results
-  all_imputed_z <- rep(NA_real_, length(z_sumstats))
-  all_deno      <- rep(NA_real_, length(z_sumstats))
-  all_id_high   <- list()
+  all_chi2    <- rep(NA_real_, length(z_sumstats))
+  all_id_high <- list()
 
   # for the first iteration, impute all, using all other variants
   removed <- rep(FALSE, length(z_sumstats))
@@ -148,7 +167,7 @@ snp_qc_sumstats <- function(corr, z_sumstats,
 
     if (print_iter) cat(i_run, "")
 
-    FUNs <- c("find_highld", "impute_z")
+    FUNs <- c("find_highld", "select_useful", "impute_z")
     all_res_this <- foreach(id_current = id_this, .export = FUNs) %dopar% {
 
       ld_current <- corr[, id_current]
@@ -156,24 +175,33 @@ snp_qc_sumstats <- function(corr, z_sumstats,
       ld_current[removed]    <- 0
 
       id_high <- find_highld(ld_current@i, ld_current@x, thr_highld, min_nb_highld)
+      if (min_nb_highld > 0 && id_high[min_nb_highld] < 0)
+        id_high <- id_high[id_high > 0]
+      if (length(id_high) < 2) return(list(NA_real_, id_high))
+
+      keep <- select_useful(corr[id_high, id_high], ld_current[id_high])
+
+      id_high <- id_high[keep]
+      if (length(id_high) < 2) return(list(NA_real_, id_high))
 
       res_impute <- impute_z(ld_current_high = ld_current[id_high],
                              z_high = z_sumstats[id_high],
                              ld_high_high = corr[id_high, id_high],
-                             prop_eigs = prop_eigs)
+                             prop_eigs = 1)
 
-      list(res_impute, id_high)
+      all_chi2 <- (z_sumstats[id_current] - res_impute[1, ])^2 /
+        pmax(res_impute[2, ], 0.01)
+
+      list(min(all_chi2[-1]), id_high)
     }
 
     # save current results
-    all_imputed_z[id_this] <- sapply(all_res_this, function(x) x[[1]][[1]])
-    all_deno[id_this]      <- sapply(all_res_this, function(x) x[[1]][[2]])
-    all_id_high[id_this]   <- lapply(all_res_this, function(x) x[[2]])
+    all_chi2[id_this]    <- sapply(all_res_this, function(x) x[[1]])
+    all_id_high[id_this] <- lapply(all_res_this, function(x) x[[2]])
 
     # get the worst variant and remove it
-    chi2 <- (z_sumstats - all_imputed_z)^2 / pmax(all_deno, .Machine$double.eps)
-    id_worst <- which.max(chi2 * !removed)
-    if (chi2[id_worst] > chi2_thr) {
+    id_worst <- which.max(all_chi2 * !removed)
+    if (all_chi2[id_worst] > chi2_thr) {
       removed[id_worst] <- TRUE
       # find which variants used id_worst for imputation, and update them
       run_next <- sapply(all_id_high, function(id_high) id_worst %in% id_high)
@@ -182,15 +210,12 @@ snp_qc_sumstats <- function(corr, z_sumstats,
 
   }
 
-  pval <- stats::pchisq(chi2, df = 1, lower.tail = FALSE)
+  pval <- stats::pchisq(all_chi2, df = 1, lower.tail = FALSE)
   # note that a variant that has been removed in one iteration can still have
   # a non-significant p-value in the end; this prevents many false positives
 
   tibble::tibble(
-    z_ss     = z_sumstats,
-    z_ss_imp = all_imputed_z,
-    deno_qc  = all_deno,
-    chi2_qc  = chi2,
+    chi2_qc  = all_chi2,
     pval_qc  = pval,
     rm_qc    = pval < pval_thr
   )

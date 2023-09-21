@@ -34,8 +34,8 @@ z_imp <- bigsnpr:::impute_z(ld_current_high = ld_current[id_high],
                             ld_high_high = ld[id_high, id_high],
                             z_high = Z[id_high],
                             prop_eigs = 0.4)
-c(Z[id_current], z_imp[1])
-chi2 <- (Z[id_current] - z_imp[1])^2 / z_imp[2]
+c(Z[id_current], z_imp[1, ])
+chi2 <- (Z[id_current] - z_imp[1, ])^2 / z_imp[2, ]
 pchisq(chi2, df = 1, lower.tail = FALSE)
 
 }
