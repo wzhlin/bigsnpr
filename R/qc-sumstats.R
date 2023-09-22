@@ -167,37 +167,40 @@ snp_qc_sumstats <- function(corr, z_sumstats,
 
     if (print_iter) cat(i_run, "")
 
-    FUNs <- c("find_highld", "select_useful", "impute_z")
-    all_res_this <- foreach(id_current = id_this, .export = FUNs) %dopar% {
+    if (length(id_this) > 0) {
 
-      ld_current <- corr[, id_current]
-      ld_current[id_current] <- 0
-      ld_current[removed]    <- 0
+      FUNs <- c("find_highld", "select_useful", "impute_z")
+      all_res_this <- foreach(id_current = id_this, .export = FUNs) %dopar% {
 
-      id_high <- find_highld(ld_current@i, ld_current@x, thr_highld, min_nb_highld)
-      if (min_nb_highld > 0 && id_high[min_nb_highld] < 0)
-        id_high <- id_high[id_high > 0]
-      if (length(id_high) < 2) return(list(NA_real_, id_high))
+        ld_current <- corr[, id_current]
+        ld_current[id_current] <- 0
+        ld_current[removed]    <- 0
 
-      keep <- select_useful(corr[id_high, id_high], ld_current[id_high])
+        id_high <- find_highld(ld_current@i, ld_current@x, thr_highld, min_nb_highld)
+        if (min_nb_highld > 0 && id_high[min_nb_highld] < 0)
+          id_high <- id_high[id_high > 0]
+        if (length(id_high) < 2) return(list(NA_real_, id_high))
 
-      id_high <- id_high[keep]
-      if (length(id_high) < 2) return(list(NA_real_, id_high))
+        keep <- select_useful(corr[id_high, id_high], ld_current[id_high])
 
-      res_impute <- impute_z(ld_current_high = ld_current[id_high],
-                             z_high = z_sumstats[id_high],
-                             ld_high_high = corr[id_high, id_high],
-                             prop_eigs = 1)
+        id_high <- id_high[keep]
+        if (length(id_high) < 2) return(list(NA_real_, id_high))
 
-      all_chi2 <- (z_sumstats[id_current] - res_impute[1, ])^2 /
-        pmax(res_impute[2, ], 0.01)
+        res_impute <- impute_z(ld_current_high = ld_current[id_high],
+                               z_high = z_sumstats[id_high],
+                               ld_high_high = corr[id_high, id_high],
+                               prop_eigs = 1)
 
-      list(min(all_chi2[-1]), id_high)
+        all_chi2 <- (z_sumstats[id_current] - res_impute[1, ])^2 /
+          pmax(res_impute[2, ], 0.01)
+
+        list(min(all_chi2[-1]), id_high)
+      }
+
+      # save current results
+      all_chi2[id_this]    <- sapply(all_res_this, function(x) x[[1]])
+      all_id_high[id_this] <- lapply(all_res_this, function(x) x[[2]])
     }
-
-    # save current results
-    all_chi2[id_this]    <- sapply(all_res_this, function(x) x[[1]])
-    all_id_high[id_this] <- lapply(all_res_this, function(x) x[[2]])
 
     # get the worst variant and remove it
     id_worst <- which.max(all_chi2 * !removed)
