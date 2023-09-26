@@ -31,6 +31,25 @@ eigen_halfinv <- function(x, prop_eig, eig_tol = 1e-4) {
 }
 
 
+################################################################################
+
+select_useful <- function(ld_high, ld_current_high, thr = 0.01) {
+
+  w <- ld_current_high^2
+  keep <- rep(TRUE, length(w))
+  ld_score <- Matrix::colSums(ld_high^2)
+
+  for (j in order(w)) {
+    if ((w[j]^sqrt(ld_score[j])) < thr) {
+      keep[j] <- FALSE
+      ld_score <- update_ldscore(ld_score, ld_high@i, ld_high@x, ld_high@p, j - 1)
+      # in the end, ld_score should be 0 for those not kept
+    }
+  }
+
+  keep
+}
+
 #' Impute z-score using highly correlated variants
 #'
 #' @param id_current current id of variant to be impute
@@ -54,7 +73,7 @@ eigen_halfinv <- function(x, prop_eig, eig_tol = 1e-4) {
 #'                                 ld_current_high = ld_current[id_high],
 #'                                 z_high = Z[id_high],
 #'                                 prop_eig = 0.4)
-#' chi2 <- (Z[id_current] - z_imputed[1])^2 / z_imputed[2]
+#' chi2 <- (Z[id_current] - z_imputed[1, ])^2 / z_imputed[2, ]
 #' pchisq(chi2, df = 1, lower.tail = FALSE)
 #'
 #'
@@ -63,14 +82,15 @@ impute_z <- function(ld_high_high,
                      z_high,
                      prop_eig = 0.4) {
 
-  eig_scaled <- eigen_halfinv(ld_high_high , prop_eig = prop_eig) # get eig
+  eig_scaled <- eigen_halfinv(ld_high_high, prop_eig = prop_eig) # get eig
 
-  z_imputed <-
-    (ld_current_high %*% eig_scaled) %*% crossprod(eig_scaled, z_high)
+  r_half <- ld_current_high %*% eig_scaled
 
-  deno <- 1 - tcrossprod(ld_current_high %*% eig_scaled)
+  z_imputed <- cumsum(r_half * as.vector(crossprod(eig_scaled, z_high)))
 
-  c(z_imputed, deno)
+  deno <- 1 - cumsum(r_half^2)
+
+  rbind(z_imputed, deno)
 }
 
 
@@ -116,13 +136,11 @@ snp_qc_sumstats <- function(z_sumstats,
 
   chi2_gwide_thr <- stats::qchisq(5e-8, df = 1, lower.tail = FALSE)
 
-  all_imputed_z <- rep(NA_real_, length(z_sumstats))
-  all_deno      <- rep(NA_real_, length(z_sumstats))
+  all_chi2      <- rep(NA_real_, length(z_sumstats))
   all_id_high   <- list()
 
   removed <- rep(FALSE, length(z_sumstats))
-
-  id_this <- seq_len(length(z_sumstats))
+  id_this <- seq_along(z_sumstats)
 
   bigparallelr::register_parallel(ncores)
 
@@ -138,38 +156,59 @@ snp_qc_sumstats <- function(z_sumstats,
       cat("=== i_run =", i_run, "-- length for this:", length(id_this), "===\n")
     }
 
-    fun_use <- c("find_highld", "impute_z")
+    if (length(id_this) > 0) {
+
+    fun_use <- c("find_highld", "select_useful", "impute_z")
     all_res_this <- foreach(id_current = id_this, .export = fun_use) %dopar% {
+
       ld_current <- ld[, id_current]
-      ld_current[c(id_current, id_rm)] <- 0
+      ld_current[id_current] <- 0
+      ld_current[removed]    <- 0
 
       id_high <- find_highld(ld_current@i, ld_current@x, thr_highld, num_highld)
       ld_high_high <- ld[id_high, id_high]
 
-      res_impute <- impute_z(ld_high_high = ld_high_high,
+      if (num_highld > 0 && id_high[num_highld] < 0) {
+        id_high <- id_high[id_high > 0]
+      }
+      if (length(id_high) < 2)
+        return(list(NA_real_, id_high))
+
+      keep <- select_useful(ld_high_high, ld_current[id_high])
+
+      id_high <- id_high[keep]
+      if (length(id_high) < 2)
+        return(list(NA_real_, id_high))
+
+
+      res_impute <- impute_z(ld_high_high = ld[id_high, id_high],
                              ld_current_high = ld_current[id_high],
                              z_high = z_sumstats[id_high],
                              prop_eig = prop_eig)
-      list(res_impute, id_high)
+
+      all_chi2 <- (z_sumstats[id_current] - res_impute[1, ])^2 /
+        pmax(res_impute[2, ], 0.01)
+
+      list(min(all_chi2[-1]), id_high)
     }
 
-    all_imputed_z[id_this] <- sapply(all_res_this, function(x) x[[1]][[1]])
-    all_deno[id_this]      <- pmax(sapply(all_res_this, function(x) x[[1]][[2]]),
-                                   .Machine$double.eps)
-    all_id_high[id_this]   <- lapply(all_res_this, function(x) x[[2]])
+    all_chi2[id_this]    <- sapply(all_res_this, function(x) x[[1]])
+    all_id_high[id_this] <- lapply(all_res_this, function(x) x[[2]])
 
     if (print_info) {
       timing <- difftime(Sys.time(), st_time_this, units = "secs")
       cat("Time for this:", round(timing, 1), "seconds.\n")
     }
 
-    chi2 <- (z_sumstats - all_imputed_z)^2 / all_deno
-    id_rm_this <- which.max(chi2 * !removed)
+    }
 
-    if (chi2[id_rm_this] > chi2_gwide_thr) {
+    id_rm_this <- which.max(all_chi2 * !removed)
+    print(id_rm_this)
+
+    if (all_chi2[id_rm_this] > chi2_gwide_thr) {
       removed[id_rm_this] <- TRUE
       run_next <- sapply(all_id_high, function(vec) {
-        any(id_rm_this %in% vec)
+        id_rm_this %in% vec
       })
       id_this <- which(run_next)
     } else break
@@ -181,15 +220,11 @@ snp_qc_sumstats <- function(z_sumstats,
     cat("Time for all:", round(timing_all, 1), "minutes.\n")
   }
 
-
-  chi2_final <- (z_sumstats - all_imputed_z)^2 / all_deno
-  pval_final <- stats::pchisq(chi2_final, df = 1, lower.tail = FALSE)
+  pval_final <- stats::pchisq(all_chi2, df = 1, lower.tail = FALSE)
 
 
   data.frame(
-    z_sumstats = z_sumstats,
-    z_imputed = all_imputed_z,
-    chi2_final = chi2_final,
+    chi2_final = all_chi2,
     p_val = pval_final,
     remove = pval_final < 5e-8
   )
