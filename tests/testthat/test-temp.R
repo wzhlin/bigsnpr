@@ -8,8 +8,9 @@ context("qc")
 test_that("this is a test", {
 
   # local host at 10.0.0.158
-
-  ncores <- nb_cores()    # for parallel computing
+  library(bigsnpr)
+  library(dplyr)
+  ncores <- 12    # for parallel computing
   id_chr <- 22
   prop_eig <- 0.4
   thr_highld <- 0.05      # change thr for ld         # change
@@ -31,9 +32,31 @@ test_that("this is a test", {
 
   res <- snp_qc_sumstats(z_sumstats = z_sumstats, ld = ld,
                          thr_highld = thr_highld, prop_eig = prop_eig,
+                         print_info = TRUE,
                          max_run = 500, ncores = ncores)
 
   chi2_final <- res$chi2_final
+  sumstat <- bigreadr::fread2(paste0("C://Users/linwe/Desktop/dentist-main/1000g/sumstat.chr_22.txt"))
+  
+  df_res <- data.frame(
+    is_error = !near(sumstat$beta, sumstat_error$beta),
+    qc = res$remove
+  )
+  
+  print(with(df_res, table(is_error, qc)))
+#           qc
+# is_error FALSE  TRUE
+#    FALSE 17268    11
+#    TRUE    140    34
+  
+  ind_gwas_low <- which(sumstat_error$p < 0.01)
+  
+  print(with(df_res[ind_gwas_low,], table(is_error, qc)))
+#           qc
+# is_error FALSE TRUE
+#    FALSE  1046    0
+#    TRUE      2    7
+  
 
   expect_equal(chi2_final[1], 0.7524024, check.attributes = FALSE, tolerance = 4e-5)
 
