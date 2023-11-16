@@ -213,7 +213,7 @@ snp_qc_sumstats <- function(z_sumstats,
 
     if (all_chi2[id_rm_this] > chi2_gwide_thr) {
       removed[id_rm_this] <- TRUE
-      cat("   ", id_rm_this, " will be removed.\n")
+      cat("    #", id_rm_this, " will be removed.\n")
 
       run_next <- sapply(all_id_high, function(vec) {
         id_rm_this %in% vec
