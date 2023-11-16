@@ -97,17 +97,22 @@ impute_z <- function(ld_high_high,
 #' Quality Control of summary statistics
 #'
 #' @param z_sumstats z_sumstats from GWAS summary statistics
-#' @param ld LD matrix
+#' @param corr LD matrix
 #' @param thr_highld Threshold for highly correlated variants, `0.05` by default
 #' @param num_highld Minimum number of highly correlated variants, `20` by default
 #' @param prop_eig Proportion of eigenvalues to attain, `0.4` by default
 #' @param max_run Maximum round of iterations to run.
-#' @param print_info print_info or not, `FALSE` by default
+#' @param p_val_thr P-value Threshold for QC, `5e-8` by default
+#' @param print_info Print_info or not, `FALSE` by default
 #' @param ncores Number of cores to run in parallel
 #'
 #' @export
 #'
-#' @return A dataframe of original z-score, imputed z-score, chisq statistics, p-value, and whether to be removed or not
+#' @return A dataframe wth three variables of each variants:
+#' - `$chi2_final`: chi-squared statistics
+#' - `$p_val`: corresponding p-value
+#' - `$remove`: corresponding variant being removed or not
+#'
 #'
 #' @examples
 #'
@@ -128,12 +133,13 @@ snp_qc_sumstats <- function(z_sumstats,
                             num_highld = 20,
                             prop_eig = 0.4,
                             max_run = 0.1 * length(z_sumstats),
+                            p_val_thr = 5e-8,
                             print_info = FALSE,
                             ncores = 1) {
 
   bigassertr::assert_lengths(z_sumstats, rows_along(corr), cols_along(corr))
 
-  chi2_gwide_thr <- stats::qchisq(5e-8, df = 1, lower.tail = FALSE)
+  chi2_gwide_thr <- stats::qchisq(p_val_thr, df = 1, lower.tail = FALSE)
 
   all_chi2      <- rep(NA_real_, length(z_sumstats))
   all_id_high   <- list()
@@ -229,7 +235,7 @@ snp_qc_sumstats <- function(z_sumstats,
   data.frame(
     chi2_final = all_chi2,
     p_val = pval_final,
-    remove = pval_final < 5e-8
+    remove = pval_final < p_val_thr
   )
 }
 

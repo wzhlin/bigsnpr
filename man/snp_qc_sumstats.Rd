@@ -11,12 +11,15 @@ snp_qc_sumstats(
   num_highld = 20,
   prop_eig = 0.4,
   max_run = 0.1 * length(z_sumstats),
+  p_val_thr = 5e-08,
   print_info = FALSE,
   ncores = 1
 )
 }
 \arguments{
 \item{z_sumstats}{z_sumstats from GWAS summary statistics}
+
+\item{corr}{LD matrix}
 
 \item{thr_highld}{Threshold for highly correlated variants, \code{0.05} by default}
 
@@ -26,14 +29,19 @@ snp_qc_sumstats(
 
 \item{max_run}{Maximum round of iterations to run.}
 
-\item{print_info}{print_info or not, \code{FALSE} by default}
+\item{p_val_thr}{P-value Threshold for QC, \code{5e-8} by default}
+
+\item{print_info}{Print_info or not, \code{FALSE} by default}
 
 \item{ncores}{Number of cores to run in parallel}
-
-\item{ld}{LD matrix}
 }
 \value{
-A dataframe of original z-score, imputed z-score, chisq statistics, p-value, and whether to be removed or not
+A dataframe wth three variables of each variants:
+\itemize{
+\item \verb{$chi2_final}: chi-squared statistics
+\item \verb{$p_val}: corresponding p-value
+\item \verb{$remove}: corresponding variant being removed or not
+}
 }
 \description{
 Quality Control of summary statistics
