@@ -100,7 +100,7 @@ impute_z <- function(ld_high_high,
 #' @param corr LD matrix
 #' @param thr_highld Threshold for highly correlated variants, `0.05` by default
 #' @param num_highld Minimum number of highly correlated variants, `20` by default
-#' @param prop_eig Proportion of eigenvalues to attain, `0.4` by default
+#' @param prop_eig Proportion of eigenvalues to attain, `1` by default
 #' @param max_run Maximum round of iterations to run.
 #' @param p_val_thr P-value Threshold for QC, `5e-8` by default
 #' @param print_info Print_info or not, `FALSE` by default
@@ -131,7 +131,7 @@ snp_qc_sumstats <- function(z_sumstats,
                             corr,
                             thr_highld = 0.05,
                             num_highld = 20,
-                            prop_eig = 0.4,
+                            prop_eig = 1,
                             max_run = 0.1 * length(z_sumstats),
                             p_val_thr = 5e-8,
                             print_info = FALSE,

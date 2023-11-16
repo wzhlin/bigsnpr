@@ -9,7 +9,7 @@ snp_qc_sumstats(
   corr,
   thr_highld = 0.05,
   num_highld = 20,
-  prop_eig = 0.4,
+  prop_eig = 1,
   max_run = 0.1 * length(z_sumstats),
   p_val_thr = 5e-08,
   print_info = FALSE,
@@ -25,7 +25,7 @@ snp_qc_sumstats(
 
 \item{num_highld}{Minimum number of highly correlated variants, \code{20} by default}
 
-\item{prop_eig}{Proportion of eigenvalues to attain, \code{0.4} by default}
+\item{prop_eig}{Proportion of eigenvalues to attain, \code{1} by default}
 
 \item{max_run}{Maximum round of iterations to run.}
 
