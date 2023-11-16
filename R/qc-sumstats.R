@@ -204,7 +204,7 @@ snp_qc_sumstats <- function(z_sumstats,
 
       if (print_info) {
         timing <- difftime(Sys.time(), st_time_this, units = "secs")
-        cat("Time for this iteration:", round(timing, 1), "seconds.\n")
+        cat("    Time for this iteration:", round(timing, 1), "seconds.\n")
       }
 
     }
