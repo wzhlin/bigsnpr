@@ -31,25 +31,6 @@ eigen_halfinv <- function(x, prop_eigs, tol = 1e-4) {
 
 ################################################################################
 
-select_useful <- function(ld_high, ld_current_high, thr = 0.01) {
-
-  w <- ld_current_high^2
-  keep <- rep(TRUE, length(w))
-  ld_score <- Matrix::colSums(ld_high^2)
-
-  for (j in order(w)) {
-    if ((w[j]^sqrt(ld_score[j])) < thr) {
-      keep[j] <- FALSE
-      ld_score <- update_ldscore(ld_score, ld_high@i, ld_high@x, ld_high@p, j - 1)
-      # in the end, ld_score should be 0 for those not kept
-    }
-  }
-
-  keep
-}
-
-################################################################################
-
 #' Impute z-score using nearby variants
 #'
 #' @param ld_current_high LD between variant to impute and its high LD variants.
@@ -141,14 +122,14 @@ impute_z <- function(ld_current_high, ld_high_high, z_high, prop_eigs) {
 #'
 snp_qc_sumstats <- function(corr, z_sumstats,
                             thr_highld = 0.05,
-                            min_nb_highld = 20,
-                            prop_eigs = 0.4,
-                            max_run = 0.1 * length(z_sumstats),
+                            removed = rep(FALSE, length(z_sumstats)),
+                            max_run = length(z_sumstats),
                             pval_thr = 5e-8,
                             print_iter = FALSE,
+                            thr_select = 0.01,
                             ncores = 1) {
 
-  assert_lengths(rows_along(corr), cols_along(corr), z_sumstats)
+  assert_lengths(rows_along(corr), cols_along(corr), z_sumstats, removed)
   assert_nona(z_sumstats)
 
   chi2_thr <- stats::qchisq(pval_thr, df = 1, lower.tail = FALSE)
@@ -157,9 +138,11 @@ snp_qc_sumstats <- function(corr, z_sumstats,
   all_chi2    <- rep(NA_real_, length(z_sumstats))
   all_id_high <- list()
 
+  keep_high <- rep(FALSE, length(z_sumstats))  # placeholder
+
   # for the first iteration, impute all, using all other variants
-  removed <- rep(FALSE, length(z_sumstats))
   id_this <- seq_along(z_sumstats)
+  keep <- !removed
 
   bigparallelr::register_parallel(ncores)
 
@@ -169,32 +152,31 @@ snp_qc_sumstats <- function(corr, z_sumstats,
 
     if (length(id_this) > 0) {
 
-      FUNs <- c("find_highld", "select_useful", "impute_z")
+      FUNs <- c("find_highld", "test_ld_score", "impute_z")
       all_res_this <- foreach(id_current = id_this, .export = FUNs) %dopar% {
 
-        ld_current <- corr[, id_current]
-        ld_current[id_current] <- 0
-        ld_current[removed]    <- 0
+        high_ld <- find_highld(corr, id_current - 1L, keep, thr_highld)
+        ind_high_r <- high_ld[[1]] + 1L
+        if (length(ind_high_r) < 2) return(list(NA_real_, ind_high_r))
 
-        id_high <- find_highld(ld_current@i, ld_current@x, thr_highld, min_nb_highld)
-        if (min_nb_highld > 0 && id_high[min_nb_highld] < 0)
-          id_high <- id_high[id_high > 0]
-        if (length(id_high) < 2) return(list(NA_real_, id_high))
+        # select useful -> test for w^sqrt(ld_score) < thr
+        r <- rank(-all_chi2[ind_high_r], na.last = FALSE) / length(ind_high_r) / 10 + 0.9
+        w <- high_ld[[2]]^2 #* r  # add r to prioritize better variants
+        test_ld_score(corr, ord = order(w) - 1L, ind = high_ld[[1]],
+                      keep = keep_high, thr = (log(thr_select) / log(w))^2)
+        id_high <- which(keep_high)
+        keep_high[id_high] <- FALSE  # reset
 
-        keep <- select_useful(corr[id_high, id_high], ld_current[id_high])
+        res_impute <- impute_z(
+          ld_current_high = high_ld[[2]][match(id_high, ind_high_r)],
+          z_high          = z_sumstats[id_high],
+          ld_high_high    = corr[id_high, id_high],
+          prop_eigs       = 1)
 
-        id_high <- id_high[keep]
-        if (length(id_high) < 2) return(list(NA_real_, id_high))
-
-        res_impute <- impute_z(ld_current_high = ld_current[id_high],
-                               z_high = z_sumstats[id_high],
-                               ld_high_high = corr[id_high, id_high],
-                               prop_eigs = 1)
-
-        all_chi2 <- (z_sumstats[id_current] - res_impute[1, ])^2 /
+        multi_chi2 <- (z_sumstats[id_current] - res_impute[1, ])^2 /
           pmax(res_impute[2, ], 0.01)
 
-        list(min(all_chi2[-1]), id_high)
+        list(min(multi_chi2), id_high)
       }
 
       # save current results
@@ -203,9 +185,9 @@ snp_qc_sumstats <- function(corr, z_sumstats,
     }
 
     # get the worst variant and remove it
-    id_worst <- which.max(all_chi2 * !removed)
+    id_worst <- which.max(all_chi2 * keep)
     if (all_chi2[id_worst] > chi2_thr) {
-      removed[id_worst] <- TRUE
+      keep[id_worst] <- FALSE
       # find which variants used id_worst for imputation, and update them
       run_next <- sapply(all_id_high, function(id_high) id_worst %in% id_high)
       id_this <- which(run_next)
@@ -218,9 +200,9 @@ snp_qc_sumstats <- function(corr, z_sumstats,
   # a non-significant p-value in the end; this prevents many false positives
 
   tibble::tibble(
-    chi2_qc  = all_chi2,
-    pval_qc  = pval,
-    rm_qc    = pval < pval_thr
+    chi2_qc = all_chi2,
+    pval_qc = pval,
+    rm_qc   = (pval < pval_thr) | removed
   )
 }
 

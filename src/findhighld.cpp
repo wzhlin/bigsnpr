@@ -1,72 +1,90 @@
-#include <Rcpp.h>
+/******************************************************************************/
+
+#include <bigsparser/SFBM.h>
+
 using namespace Rcpp;
+
+/******************************************************************************/
 
 inline double square(double x) { return x * x; }
 
+/******************************************************************************/
+
 // [[Rcpp::export]]
-IntegerVector find_highld(const IntegerVector& I,
-                          const NumericVector& X,
-                          double thr_highld,
-                          int min_nb_highld) {
+List find_highld(Environment corr,
+                 int j,
+                 LogicalVector& keep,
+                 double thr_highld) {
 
-  std::vector<int> highld_inds;
+  bool keep_save = keep[j];
+  keep[j] = false;  // discard itself
 
-  int K = X.size();
-  for (int k = 0; k < K; k++) {
-    double X2_k = square(X[k]);
-    if (X2_k > thr_highld)
-      highld_inds.push_back(I[k] + 1);
+  Rcpp::XPtr<SFBM> sfbm = corr["address"];
+  if (sfbm->is_compact()) Rcpp::stop("This does not work with a compact SFBM");
+  const NumericVector p = corr["p"];
+  const double * data = sfbm->i_x();
+
+  std::vector<int>    highld_inds;
+  std::vector<double> highld_vals;
+
+  size_t lo = 2 * p[j];
+  size_t up = 2 * p[j + 1];
+
+  for (size_t k = lo; k < up; k += 2) {
+    int i_k = data[k];
+    if (keep[i_k]) {
+      double x_k = data[k + 1];
+      if (square(x_k) > thr_highld) {
+        highld_inds.push_back(i_k);
+        highld_vals.push_back(x_k);
+      }
+    }
   }
 
-  if (int(highld_inds.size()) >= min_nb_highld) {
+  keep[j] = keep_save;  // reset
 
-    IntegerVector top_inds = wrap(highld_inds);
-    top_inds.attr("thresholded") = true;
-    return top_inds;
+  IntegerVector inds = wrap(highld_inds);
+  NumericVector vals = wrap(highld_vals);
 
-  } else {
+  return List::create(inds, vals);
+}
 
-    IntegerVector top_inds(min_nb_highld, -1);
-    NumericVector top_vals(min_nb_highld, -1.0);
+/******************************************************************************/
 
-    for (int k = 0; k < K; k++) {
-      double X2_k = square(X[k]);
-      int I_k = I[k] + 1;
-      if (X2_k > top_vals[min_nb_highld-1]) {  // larger than at least one
-        // place it at the end of the list
-        int j = min_nb_highld-1;
-        top_inds[j] = I_k;
-        top_vals[j] = X2_k;
-        j--;
-        // check whether can move it further up
-        for(; j >= 0 && X2_k > top_vals[j]; j--) {
-          // move this one down the list
-          top_inds[j+1] = top_inds[j];
-          top_vals[j+1] = top_vals[j];
-          // and move k up
-          top_inds[j] = I_k;
-          top_vals[j] = X2_k;
+// [[Rcpp::export]]
+void test_ld_score(Environment corr,
+                   const IntegerVector& ord,
+                   const IntegerVector& ind,
+                   LogicalVector& keep,
+                   const NumericVector& thr) {
+
+  Rcpp::XPtr<SFBM> sfbm = corr["address"];
+  if (sfbm->is_compact()) Rcpp::stop("This does not work with a compact SFBM");
+  const NumericVector p = corr["p"];
+  const double * data = sfbm->i_x();
+
+  for (auto& j : ind) keep[j] = true;
+
+  for (auto& o : ord) {
+
+    int j = ind[o];
+    size_t lo = 2 * p[j];
+    size_t up = 2 * p[j + 1];
+
+    double ld_score = 0;
+
+    for (size_t k = lo; k < up; k += 2) {
+      int i_k = data[k];
+      if (keep[i_k]) {
+        double x_k = data[k + 1];
+        ld_score += square(x_k);
+        if (ld_score > thr[o]) {
+          keep[j] = false;
+          break;
         }
       }
     }
-
-    top_inds.attr("thresholded") = false;
-    return top_inds;
   }
-
 }
 
-// [[Rcpp::export]]
-NumericVector& update_ldscore(NumericVector& ld_score,
-                              const IntegerVector& I,
-                              const NumericVector& X,
-                              const IntegerVector& P,
-                              int j) {
-
-  int K = P[j + 1];
-  for (int k = P[j]; k < K; k++) {
-    ld_score[I[k]] -= square(X[k]);
-  }
-
-  return ld_score;
-}
+/******************************************************************************/

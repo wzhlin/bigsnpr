@@ -8,11 +8,11 @@ snp_qc_sumstats(
   corr,
   z_sumstats,
   thr_highld = 0.05,
-  min_nb_highld = 20,
-  prop_eigs = 0.4,
-  max_run = 0.1 * length(z_sumstats),
+  removed = rep(FALSE, length(z_sumstats)),
+  max_run = length(z_sumstats),
   pval_thr = 5e-08,
   print_iter = FALSE,
+  thr_select = 0.01,
   ncores = 1
 )
 }
@@ -25,12 +25,6 @@ If \code{corr} is a dsCMatrix or a dgCMatrix, you can use \code{as_SFBM(corr)}.}
 \item{thr_highld}{Threshold on squared correlations to decide which variants
 to use for imputation. Default is \code{0.05}.}
 
-\item{min_nb_highld}{Minimum number of variants to use for imputation.
-In case not enough variants pass \code{thr_highld}, the most correlated are used.
-Default is \code{20}.}
-
-\item{prop_eigs}{The proportion of eigen components to keep.}
-
 \item{max_run}{Maximum number of iterations (and therefore the maximum number
 of variants that can be removed). Default is 10\% of all variants.}
 
@@ -40,6 +34,10 @@ of variants that can be removed). Default is 10\% of all variants.}
 
 \item{ncores}{Number of cores used. Default doesn't use parallelism.
 You may use \link{nb_cores}.}
+
+\item{min_nb_highld}{Minimum number of variants to use for imputation.
+In case not enough variants pass \code{thr_highld}, the most correlated are used.
+Default is \code{20}.}
 }
 \value{
 A tibble (data frame) with 6 variables for each variants:

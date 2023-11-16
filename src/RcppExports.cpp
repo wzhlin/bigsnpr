@@ -256,32 +256,31 @@ BEGIN_RCPP
 END_RCPP
 }
 // find_highld
-IntegerVector find_highld(const IntegerVector& I, const NumericVector& X, double thr_highld, int min_nb_highld);
-RcppExport SEXP _bigsnpr_find_highld(SEXP ISEXP, SEXP XSEXP, SEXP thr_highldSEXP, SEXP min_nb_highldSEXP) {
+List find_highld(Environment corr, int j, LogicalVector& keep, double thr_highld);
+RcppExport SEXP _bigsnpr_find_highld(SEXP corrSEXP, SEXP jSEXP, SEXP keepSEXP, SEXP thr_highldSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const IntegerVector& >::type I(ISEXP);
-    Rcpp::traits::input_parameter< const NumericVector& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< Environment >::type corr(corrSEXP);
+    Rcpp::traits::input_parameter< int >::type j(jSEXP);
+    Rcpp::traits::input_parameter< LogicalVector& >::type keep(keepSEXP);
     Rcpp::traits::input_parameter< double >::type thr_highld(thr_highldSEXP);
-    Rcpp::traits::input_parameter< int >::type min_nb_highld(min_nb_highldSEXP);
-    rcpp_result_gen = Rcpp::wrap(find_highld(I, X, thr_highld, min_nb_highld));
+    rcpp_result_gen = Rcpp::wrap(find_highld(corr, j, keep, thr_highld));
     return rcpp_result_gen;
 END_RCPP
 }
-// update_ldscore
-NumericVector& update_ldscore(NumericVector& ld_score, const IntegerVector& I, const NumericVector& X, const IntegerVector& P, int j);
-RcppExport SEXP _bigsnpr_update_ldscore(SEXP ld_scoreSEXP, SEXP ISEXP, SEXP XSEXP, SEXP PSEXP, SEXP jSEXP) {
+// test_ld_score
+void test_ld_score(Environment corr, const IntegerVector& ord, const IntegerVector& ind, LogicalVector& keep, const NumericVector& thr);
+RcppExport SEXP _bigsnpr_test_ld_score(SEXP corrSEXP, SEXP ordSEXP, SEXP indSEXP, SEXP keepSEXP, SEXP thrSEXP) {
 BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector& >::type ld_score(ld_scoreSEXP);
-    Rcpp::traits::input_parameter< const IntegerVector& >::type I(ISEXP);
-    Rcpp::traits::input_parameter< const NumericVector& >::type X(XSEXP);
-    Rcpp::traits::input_parameter< const IntegerVector& >::type P(PSEXP);
-    Rcpp::traits::input_parameter< int >::type j(jSEXP);
-    rcpp_result_gen = Rcpp::wrap(update_ldscore(ld_score, I, X, P, j));
-    return rcpp_result_gen;
+    Rcpp::traits::input_parameter< Environment >::type corr(corrSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type ord(ordSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type ind(indSEXP);
+    Rcpp::traits::input_parameter< LogicalVector& >::type keep(keepSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type thr(thrSEXP);
+    test_ld_score(corr, ord, ind, keep, thr);
+    return R_NilValue;
 END_RCPP
 }
 // impute
@@ -624,7 +623,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bigsnpr_replaceSNP", (DL_FUNC) &_bigsnpr_replaceSNP, 4},
     {"_bigsnpr_corMat", (DL_FUNC) &_bigsnpr_corMat, 8},
     {"_bigsnpr_find_highld", (DL_FUNC) &_bigsnpr_find_highld, 4},
-    {"_bigsnpr_update_ldscore", (DL_FUNC) &_bigsnpr_update_ldscore, 5},
+    {"_bigsnpr_test_ld_score", (DL_FUNC) &_bigsnpr_test_ld_score, 5},
     {"_bigsnpr_impute", (DL_FUNC) &_bigsnpr_impute, 3},
     {"_bigsnpr_lassosum2", (DL_FUNC) &_bigsnpr_lassosum2, 8},
     {"_bigsnpr_ld_scores_sfbm", (DL_FUNC) &_bigsnpr_ld_scores_sfbm, 3},

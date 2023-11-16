@@ -61,12 +61,12 @@ corMat <- function(obj, rowInd, colInd, size, thr, pos, fill_diag, ncores) {
     .Call(`_bigsnpr_corMat`, obj, rowInd, colInd, size, thr, pos, fill_diag, ncores)
 }
 
-find_highld <- function(I, X, thr_highld, min_nb_highld) {
-    .Call(`_bigsnpr_find_highld`, I, X, thr_highld, min_nb_highld)
+find_highld <- function(corr, j, keep, thr_highld) {
+    .Call(`_bigsnpr_find_highld`, corr, j, keep, thr_highld)
 }
 
-update_ldscore <- function(ld_score, I, X, P, j) {
-    .Call(`_bigsnpr_update_ldscore`, ld_score, I, X, P, j)
+test_ld_score <- function(corr, ord, ind, keep, thr) {
+    invisible(.Call(`_bigsnpr_test_ld_score`, corr, ord, ind, keep, thr))
 }
 
 impute <- function(BM, method, ncores) {
