@@ -255,6 +255,35 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// find_highld
+IntegerVector find_highld(const IntegerVector& I, const NumericVector& X, double thr_highld, int num_highld);
+RcppExport SEXP _bigsnpr_find_highld(SEXP ISEXP, SEXP XSEXP, SEXP thr_highldSEXP, SEXP num_highldSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const IntegerVector& >::type I(ISEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< double >::type thr_highld(thr_highldSEXP);
+    Rcpp::traits::input_parameter< int >::type num_highld(num_highldSEXP);
+    rcpp_result_gen = Rcpp::wrap(find_highld(I, X, thr_highld, num_highld));
+    return rcpp_result_gen;
+END_RCPP
+}
+// update_ldscore
+NumericVector& update_ldscore(NumericVector& ld_score, const IntegerVector& I, const NumericVector& X, const IntegerVector& P, int j);
+RcppExport SEXP _bigsnpr_update_ldscore(SEXP ld_scoreSEXP, SEXP ISEXP, SEXP XSEXP, SEXP PSEXP, SEXP jSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector& >::type ld_score(ld_scoreSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type I(ISEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type P(PSEXP);
+    Rcpp::traits::input_parameter< int >::type j(jSEXP);
+    rcpp_result_gen = Rcpp::wrap(update_ldscore(ld_score, I, X, P, j));
+    return rcpp_result_gen;
+END_RCPP
+}
 // impute
 void impute(Environment BM, int method, int ncores);
 RcppExport SEXP _bigsnpr_impute(SEXP BMSEXP, SEXP methodSEXP, SEXP ncoresSEXP) {
@@ -594,6 +623,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bigsnpr_snp_colstats", (DL_FUNC) &_bigsnpr_snp_colstats, 4},
     {"_bigsnpr_replaceSNP", (DL_FUNC) &_bigsnpr_replaceSNP, 4},
     {"_bigsnpr_corMat", (DL_FUNC) &_bigsnpr_corMat, 8},
+    {"_bigsnpr_find_highld", (DL_FUNC) &_bigsnpr_find_highld, 4},
+    {"_bigsnpr_update_ldscore", (DL_FUNC) &_bigsnpr_update_ldscore, 5},
     {"_bigsnpr_impute", (DL_FUNC) &_bigsnpr_impute, 3},
     {"_bigsnpr_lassosum2", (DL_FUNC) &_bigsnpr_lassosum2, 8},
     {"_bigsnpr_ld_scores_sfbm", (DL_FUNC) &_bigsnpr_ld_scores_sfbm, 3},
