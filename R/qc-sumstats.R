@@ -1,85 +1,5 @@
 ################################################################################
 
-#' Eigen decomposition to get x^-0.5
-#'
-#' @param x A square symmetric matrix.
-#' @param prop_eigs The proportion of eigen components to keep.
-#' @param tol The minimum eigenvalue allowed; others are discarded.
-#'
-#' @return An approximation of x^-0.5.
-#'
-#' @examples
-#' x <- tcrossprod(matrix(1:4, 2))
-#' eig_scaled <- bigsnpr:::eigen_halfinv(x, prop_eigs = 1)
-#' all.equal(solve(x), tcrossprod(eig_scaled))
-#'
-eigen_halfinv <- function(x, prop_eigs, tol = 1e-4) {
-
-  e <- eigen(x, symmetric = TRUE)  # eigen decomposition
-  e_value  <- e$values
-  e_vector <- e$vectors
-
-  nrank <- sum(e_value > tol)
-  nkeep <- min(ceiling(prop_eigs * nrow(x)), nrank)
-
-  ind_keep <- seq_len(nkeep)
-  e_vector_keep <- e_vector[, ind_keep, drop = FALSE]
-  e_value_keep <- e_value[ind_keep]
-
-  sweep(e_vector_keep, 2, sqrt(e_value_keep), '/')
-}
-
-################################################################################
-
-#' Impute z-score using nearby variants
-#'
-#' @param ld_current_high LD between variant to impute and its high LD variants.
-#' @param ld_high_high LD matrix between the high LD variants.
-#' @param z_high z-scores of `id_high` variants.
-#' @inheritParams eigen_halfinv
-#'
-#' @return The imputed z-score, as well as the denominator of the chi-squared
-#'   statistic (z - z_imp)^2 / deno.
-#'
-#' @references Chen, Wenhan, et al. "Improved analyses of GWAS summary statistics
-#'   by reducing data heterogeneity and errors." Nature Communications 12.1
-#'   (2021): 7117. \doi{10.1038/s41467-021-27438-7}.
-#'
-#' @examples
-#' bigsnp <- snp_attachExtdata()
-#' G <- bigsnp$genotypes
-#' Z <- big_univLogReg(G, bigsnp$fam$affection - 1, ind.col = 1:500)$score
-#' ld <- snp_cor(G, ind.col = 1:500)
-#' id_current <- which.max(Matrix::colSums(ld^2))
-#' ld_current <- ld[, id_current]
-#' id_high <- setdiff(which(ld_current^2 > 0.02), id_current)
-#' z_imp <- bigsnpr:::impute_z(ld_current_high = ld_current[id_high],
-#'                             ld_high_high = ld[id_high, id_high],
-#'                             z_high = Z[id_high],
-#'                             prop_eigs = 0.4)
-#' c(Z[id_current], z_imp[1, ])
-#' chi2 <- (Z[id_current] - z_imp[1, ])^2 / z_imp[2, ]
-#' pchisq(chi2, df = 1, lower.tail = FALSE)
-#'
-impute_z <- function(ld_current_high, ld_high_high, z_high, prop_eigs) {
-
-  # eigendecomposition to get R_tt^-0.5
-  eig_scaled <- eigen_halfinv(ld_high_high, prop_eigs = prop_eigs)
-
-  # R_it R_tt^-0.5
-  r_half <- ld_current_high %*% eig_scaled
-
-  # R_it R_tt^-1 z_t
-  z_imputed <- cumsum(r_half * as.vector(crossprod(eig_scaled, z_high)))
-
-  # 1 - R_it R_tt^-1 R_ti
-  deno <- 1 - cumsum(r_half^2)
-
-  rbind(z_imputed, deno)
-}
-
-################################################################################
-
 #' Quality control of summary statistics
 #'
 #' Quality control of summary statistics, by comparing z-scores with z-scores
@@ -135,7 +55,7 @@ snp_qc_sumstats <- function(corr, z_sumstats,
   chi2_thr <- stats::qchisq(pval_thr, df = 1, lower.tail = FALSE)
 
   # preallocate results
-  all_chi2    <- rep(NA_real_, length(z_sumstats))
+  all_chi2    <- rep(-1, length(z_sumstats))
   all_id_high <- list()
 
   keep_high <- rep(FALSE, length(z_sumstats))  # placeholder
@@ -152,7 +72,7 @@ snp_qc_sumstats <- function(corr, z_sumstats,
 
     if (length(id_this) > 0) {
 
-      FUNs <- c("find_highld", "test_ld_score", "impute_z")
+      FUNs <- c("find_highld", "test_ld_score")
       all_res_this <- foreach(id_current = id_this, .export = FUNs) %dopar% {
 
         high_ld <- find_highld(corr, id_current - 1L, keep, thr_highld)
@@ -160,23 +80,42 @@ snp_qc_sumstats <- function(corr, z_sumstats,
         if (length(ind_high_r) < 2) return(list(NA_real_, ind_high_r))
 
         # select useful -> test for w^sqrt(ld_score) < thr
-        r <- rank(-all_chi2[ind_high_r], na.last = FALSE) / length(ind_high_r) / 10 + 0.9
-        w <- high_ld[[2]]^2 #* r  # add r to prioritize better variants
+        r <- pchisq(all_chi2[ind_high_r], df = 20, lower.tail = FALSE)
+        w <- high_ld[[2]]^2 * r  # use r to prioritize better variants
         test_ld_score(corr, ord = order(w) - 1L, ind = high_ld[[1]],
                       keep = keep_high, thr = (log(thr_select) / log(w))^2)
         id_high <- which(keep_high)
         keep_high[id_high] <- FALSE  # reset
 
-        res_impute <- impute_z(
-          ld_current_high = high_ld[[2]][match(id_high, ind_high_r)],
-          z_high          = z_sumstats[id_high],
-          ld_high_high    = corr[id_high, id_high],
-          prop_eigs       = 1)
+        ld_current_high <- high_ld[[2]][match(id_high, ind_high_r)]
+        ld_high_high <- as.matrix(corr[id_high, id_high])
 
-        multi_chi2 <- (z_sumstats[id_current] - res_impute[1, ])^2 /
-          pmax(res_impute[2, ], 0.01)
+        e <- eigen(ld_high_high, symmetric = TRUE)  # eigen decomposition
+        e_val  <- e$values
+        ind_keep <- which(e_val > (e_val[1] * 1e-10))
+        e_vec_keep <- e$vectors[, ind_keep, drop = FALSE]
+        e_val_keep <- e_val[ind_keep]
 
-        list(min(multi_chi2), id_high)
+        # pick some regularization (add to the diagonal)
+        r_half_noscale_sq <- drop(ld_current_high %*% e_vec_keep)^2
+        if (sum(r_half_noscale_sq / e_val_keep) < 0.99) {
+          lam <- 0
+        } else {
+          lam <- uniroot(interval = c(0, 10), extendInt = "no", function(lam)
+            0.99 - sum(r_half_noscale_sq / (e_val_keep + lam)))$root
+        }
+        # R_tt^-0.5
+        eig_scaled <- sweep(e_vec_keep, 2, sqrt(e_val_keep + lam), '/')
+        # R_it R_tt^-0.5
+        r_half <- drop(ld_current_high %*% eig_scaled)
+        # R_it R_tt^-1 z_t
+        z_imputed <- cumsum(r_half * crossprod(eig_scaled, z_sumstats[id_high]))
+        # 1 - R_it R_tt^-1 R_ti
+        deno <- 1 - cumsum(r_half^2)
+
+        multi_chi2 <- (z_sumstats[id_current] - z_imputed)^2 / deno
+
+        list(median(head(multi_chi2, length(multi_chi2) / 2)), id_high)
       }
 
       # save current results
@@ -189,8 +128,10 @@ snp_qc_sumstats <- function(corr, z_sumstats,
     if (all_chi2[id_worst] > chi2_thr) {
       keep[id_worst] <- FALSE
       # find which variants used id_worst for imputation, and update them
-      run_next <- sapply(all_id_high, function(id_high) id_worst %in% id_high)
-      id_this <- which(run_next)
+      if (i_run > 1) {  # redo them all in the 2nd iter, for updating 'r'
+        run_next <- sapply(all_id_high, function(id_high) id_worst %in% id_high)
+        id_this <- which(run_next)
+      }
     } else break
 
   }
