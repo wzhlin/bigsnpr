@@ -13,6 +13,7 @@ snp_qc_sumstats(
   pval_thr = 5e-08,
   print_iter = FALSE,
   thr_select = 0.01,
+  chi2_quantile = 0.5,
   ncores = 1
 )
 }

@@ -47,6 +47,7 @@ snp_qc_sumstats <- function(corr, z_sumstats,
                             pval_thr = 5e-8,
                             print_iter = FALSE,
                             thr_select = 0.01,
+                            chi2_quantile = 0.5,
                             ncores = 1) {
 
   assert_lengths(rows_along(corr), cols_along(corr), z_sumstats, removed)
@@ -114,8 +115,9 @@ snp_qc_sumstats <- function(corr, z_sumstats,
         deno <- 1 - cumsum(r_half^2)
 
         multi_chi2 <- (z_sumstats[id_current] - z_imputed)^2 / deno
+        first_half <- head(multi_chi2, length(multi_chi2) / 2)
 
-        list(median(head(multi_chi2, length(multi_chi2) / 2)), id_high)
+        list(quantile(first_half, probs = chi2_quantile, names = FALSE), id_high)
       }
 
       # save current results
