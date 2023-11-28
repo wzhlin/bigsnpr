@@ -86,6 +86,7 @@ snp_qc_sumstats <- function(corr, z_sumstats,
         test_ld_score(corr, ord = order(w) - 1L, ind = high_ld[[1]],
                       keep = keep_high, thr = (log(thr_select) / log(w))^2)
         id_high <- which(keep_high)
+        if (length(id_high) < 2) return(list(NA_real_, id_high))
         keep_high[id_high] <- FALSE  # reset
 
         ld_current_high <- high_ld[[2]][match(id_high, ind_high_r)]
