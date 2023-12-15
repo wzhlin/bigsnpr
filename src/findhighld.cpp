@@ -14,7 +14,7 @@ inline double square(double x) { return x * x; }
 List find_highld(Environment corr,
                  int j,
                  LogicalVector& keep,
-                 double thr_highld) {
+                 const NumericVector& thr) {
 
   bool keep_save = keep[j];
   keep[j] = false;  // discard itself
@@ -34,7 +34,7 @@ List find_highld(Environment corr,
     int i_k = data[k];
     if (keep[i_k]) {
       double x_k = data[k + 1];
-      if (square(x_k) > thr_highld) {
+      if (square(x_k) > thr[i_k]) {
         highld_inds.push_back(i_k);
         highld_vals.push_back(x_k);
       }

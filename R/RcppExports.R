@@ -57,12 +57,16 @@ replaceSNP <- function(BM, BM2, rowInd, colInd) {
     invisible(.Call(`_bigsnpr_replaceSNP`, BM, BM2, rowInd, colInd))
 }
 
+corMatInd <- function(obj, rowInd, colInd, P, I, ncores) {
+    .Call(`_bigsnpr_corMatInd`, obj, rowInd, colInd, P, I, ncores)
+}
+
 corMat <- function(obj, rowInd, colInd, size, thr, pos, fill_diag, ncores) {
     .Call(`_bigsnpr_corMat`, obj, rowInd, colInd, size, thr, pos, fill_diag, ncores)
 }
 
-find_highld <- function(corr, j, keep, thr_highld) {
-    .Call(`_bigsnpr_find_highld`, corr, j, keep, thr_highld)
+find_highld <- function(corr, j, keep, thr) {
+    .Call(`_bigsnpr_find_highld`, corr, j, keep, thr)
 }
 
 test_ld_score <- function(corr, ord, ind, keep, thr) {

@@ -237,6 +237,22 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
+// corMatInd
+List corMatInd(Environment obj, const IntegerVector& rowInd, const IntegerVector& colInd, const std::vector<size_t>& P, const std::vector<int>& I, int ncores);
+RcppExport SEXP _bigsnpr_corMatInd(SEXP objSEXP, SEXP rowIndSEXP, SEXP colIndSEXP, SEXP PSEXP, SEXP ISEXP, SEXP ncoresSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Environment >::type obj(objSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type rowInd(rowIndSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type colInd(colIndSEXP);
+    Rcpp::traits::input_parameter< const std::vector<size_t>& >::type P(PSEXP);
+    Rcpp::traits::input_parameter< const std::vector<int>& >::type I(ISEXP);
+    Rcpp::traits::input_parameter< int >::type ncores(ncoresSEXP);
+    rcpp_result_gen = Rcpp::wrap(corMatInd(obj, rowInd, colInd, P, I, ncores));
+    return rcpp_result_gen;
+END_RCPP
+}
 // corMat
 List corMat(Environment obj, const IntegerVector& rowInd, const IntegerVector& colInd, double size, const NumericVector& thr, const NumericVector& pos, bool fill_diag, int ncores);
 RcppExport SEXP _bigsnpr_corMat(SEXP objSEXP, SEXP rowIndSEXP, SEXP colIndSEXP, SEXP sizeSEXP, SEXP thrSEXP, SEXP posSEXP, SEXP fill_diagSEXP, SEXP ncoresSEXP) {
@@ -256,16 +272,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // find_highld
-List find_highld(Environment corr, int j, LogicalVector& keep, double thr_highld);
-RcppExport SEXP _bigsnpr_find_highld(SEXP corrSEXP, SEXP jSEXP, SEXP keepSEXP, SEXP thr_highldSEXP) {
+List find_highld(Environment corr, int j, LogicalVector& keep, const NumericVector& thr);
+RcppExport SEXP _bigsnpr_find_highld(SEXP corrSEXP, SEXP jSEXP, SEXP keepSEXP, SEXP thrSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< Environment >::type corr(corrSEXP);
     Rcpp::traits::input_parameter< int >::type j(jSEXP);
     Rcpp::traits::input_parameter< LogicalVector& >::type keep(keepSEXP);
-    Rcpp::traits::input_parameter< double >::type thr_highld(thr_highldSEXP);
-    rcpp_result_gen = Rcpp::wrap(find_highld(corr, j, keep, thr_highld));
+    Rcpp::traits::input_parameter< const NumericVector& >::type thr(thrSEXP);
+    rcpp_result_gen = Rcpp::wrap(find_highld(corr, j, keep, thr));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -621,6 +637,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_bigsnpr_clumping_chr", (DL_FUNC) &_bigsnpr_clumping_chr, 12},
     {"_bigsnpr_snp_colstats", (DL_FUNC) &_bigsnpr_snp_colstats, 4},
     {"_bigsnpr_replaceSNP", (DL_FUNC) &_bigsnpr_replaceSNP, 4},
+    {"_bigsnpr_corMatInd", (DL_FUNC) &_bigsnpr_corMatInd, 6},
     {"_bigsnpr_corMat", (DL_FUNC) &_bigsnpr_corMat, 8},
     {"_bigsnpr_find_highld", (DL_FUNC) &_bigsnpr_find_highld, 4},
     {"_bigsnpr_test_ld_score", (DL_FUNC) &_bigsnpr_test_ld_score, 5},
