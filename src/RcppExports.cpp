@@ -238,7 +238,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // corMatInd
-List corMatInd(Environment obj, const IntegerVector& rowInd, const IntegerVector& colInd, const std::vector<size_t>& P, const std::vector<int>& I, int ncores);
+NumericVector corMatInd(Environment obj, const IntegerVector& rowInd, const IntegerVector& colInd, const std::vector<size_t>& P, const std::vector<int>& I, int ncores);
 RcppExport SEXP _bigsnpr_corMatInd(SEXP objSEXP, SEXP rowIndSEXP, SEXP colIndSEXP, SEXP PSEXP, SEXP ISEXP, SEXP ncoresSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;

@@ -8,15 +8,15 @@ using namespace Rcpp;
 /******************************************************************************/
 
 template <class C>
-List corMatInd0(C macc,
-                const std::vector<size_t>& P,
-                const std::vector<int>& I,
-                int ncores) {
+NumericVector corMatInd0(C macc,
+                         const std::vector<size_t>& P,
+                         const std::vector<int>& I,
+                         int ncores) {
 
   int n = macc.nrow();
   int m = macc.ncol();
 
-  List res(m);
+  NumericVector X(I.size());
 
   int chunk_size = ceil(m / (10.0 * ncores));
 
@@ -28,10 +28,9 @@ List corMatInd0(C macc,
     if (lo == up) continue;
 
     size_t K = up - lo;
-    NumericVector X(K);
 
     // pre-computation
-    double xSum0 = 0, xxSum0 = 0;
+    double xSum0 = 0, xxSum0 = 0, r = 0;
     for (int i = 0; i < n; i++) {
       double x = macc(i, j0);
       if (x != 3) {
@@ -43,55 +42,58 @@ List corMatInd0(C macc,
     // main computation
     for (size_t k = 0; k < K; k++) {
 
-      int j = I[lo + k];
+      size_t k2 = lo + k;
+      int j = I[k2];
 
-      int nona = 0;
-      double xSum = xSum0, xxSum = xxSum0;
-      double ySum = 0, yySum = 0, xySum = 0;
-      for (int i = 0; i < n; i++) {
+      if (j == j0) {
+        r = 1;
+      } else {
+        int nona = 0;
+        double xSum = xSum0, xxSum = xxSum0;
+        double ySum = 0, yySum = 0, xySum = 0;
+        for (int i = 0; i < n; i++) {
 
-        double x = macc(i, j0);
-        if (x == 3) continue;
+          double x = macc(i, j0);
+          if (x == 3) continue;
 
-        double y = macc(i, j);
-        if (y == 3) {
-          // y is missing, but not x
-          xSum  -= x;
-          xxSum -= x * x;
-        } else {
-          // none missing
-          nona++;
-          ySum  += y;
-          yySum += y * y;
-          xySum += x * y;
+          double y = macc(i, j);
+          if (y == 3) {
+            // y is missing, but not x
+            xSum  -= x;
+            xxSum -= x * x;
+          } else {
+            // none missing
+            nona++;
+            ySum  += y;
+            yySum += y * y;
+            xySum += x * y;
+          }
         }
+
+        double num = xySum - xSum * ySum / nona;
+        double deno_x = xxSum - xSum * xSum / nona;
+        double deno_y = yySum - ySum * ySum / nona;
+        r = num / ::sqrt(deno_x * deno_y);
+        if (r > 1) { r = 1; } else if (r < -1) { r = -1; }  // e.g. 1.000...04
       }
 
-      double num = xySum - xSum * ySum / nona;
-      double deno_x = xxSum - xSum * xSum / nona;
-      double deno_y = yySum - ySum * ySum / nona;
-      double r = num / ::sqrt(deno_x * deno_y);
-      if (r > 1) { r = 1; } else if (r < -1) { r = -1; }  // e.g. 1.000...04
-
-      X[k] = r;
+      #pragma omp critical
+      X[k2] = r;
     }
-
-    #pragma omp critical
-    res[j0] = X;
   }
 
-  return res;
+  return X;
 }
 
 /******************************************************************************/
 
 // [[Rcpp::export]]
-List corMatInd(Environment obj,
-               const IntegerVector& rowInd,
-               const IntegerVector& colInd,
-               const std::vector<size_t>& P,
-               const std::vector<int>& I,
-               int ncores) {
+NumericVector corMatInd(Environment obj,
+                        const IntegerVector& rowInd,
+                        const IntegerVector& colInd,
+                        const std::vector<size_t>& P,
+                        const std::vector<int>& I,
+                        int ncores) {
 
   myassert_size(colInd.size(), P.size() - 1);
 

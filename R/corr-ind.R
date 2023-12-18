@@ -19,14 +19,14 @@ corInd0 <- function(Gna, list_ind,
   corr@p <- c(0L, cumsum(lengths(list_ind)))
   rm(list_ind); gc()
 
-  corr@x <- unlist(corMatInd(
+  corr@x <- corMatInd(
     obj    = Gna,
     rowInd = ind.row,
     colInd = ind.col,
     P      = corr@p,
     I      = corr@i,
     ncores = ncores
-  ))
+  )
 
   if (anyNA(corr@x))
     warning2("NA or NaN values in the resulting correlation matrix.")
